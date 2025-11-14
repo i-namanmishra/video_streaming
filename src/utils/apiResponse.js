@@ -6,3 +6,4 @@ class apiResponse{
         this.data = data;
     }
 }
+export {apiResponse};
