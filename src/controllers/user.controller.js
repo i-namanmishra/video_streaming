@@ -131,4 +131,44 @@ const registerUser = asyncHandlers(async (req, res) => {
             new apiResponse(200,"User logged out successfully")
         );
     });
-export { registerUser, loginUser, logoutUser };
+    const refreshAccessToken = asyncHandlers(async(req,res)=>{
+        const incomingRefreshToken=req.cookies.refreshToken || req.body.refreshToken;
+
+        if(!incomingRefreshToken){
+            throw new apiErrors("Refresh token is missing",401);
+        }
+
+        try {
+            const decodedToken=jwt.verify(incomingRefreshToken,process.env.REFRESH_TOKEN_SECRET);
+            const user=await User.findById(decodedToken?._id);
+            if(!user){
+                throw new apiErrors("Invalid refresh token",403);
+            }
+    
+            if(user.refreshToken !== incomingRefreshToken){
+                throw new apiErrors("Refresh token mismatch",403);
+            }
+            const options={
+                httpOnly:true,
+                secure:true,
+            }
+            const {accessToken,refreshToken}=await generateAccessTokenAndRefreshToken(user._id);
+    
+            return res
+            .status(200)
+            .cookie("accessToken",accessToken,options)
+            .cookie("refreshToken",refreshToken,options)
+            .json(
+                new apiResponse(
+                    200,{
+                        accessToken,
+                        refreshToken
+                    },
+                    "Access token refreshed successfully"
+                )
+            );
+        } catch (error) {
+            throw new apiErrors("Invalid or expired refresh token",403);
+        }
+    });
+export { registerUser, loginUser, logoutUser, refreshAccessToken };
